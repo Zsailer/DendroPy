@@ -56,13 +56,13 @@ class D3Writer(ioservice.DataWriter):
             If |True|, then node labels will not be printed for internal nodes.
             Default is |False|: print node labels for internal nodes. See notes
             below for details.
-        suppress_edge_lengths : boolean, default: |False|
+        X suppress_edge_lengths : boolean, default: |False|
             If |True|, will not write edge lengths. Default is |False|: edge
             lengths will be written.
         store_tree_weights : boolean, default: |False|
             If |True|, tree weights are written. Default is |False|: tree
             weights will not be written.
-        suppress_annotations : boolean, default: |True|
+        X suppress_annotations : boolean, default: |True|
             If |False|, metadata annotations will be written out as special
             comments. Defaults to |True|: metadata annotations will be ignored.
         suppress_item_comments : boolean, default: |True|
@@ -187,16 +187,17 @@ class D3Writer(ioservice.DataWriter):
         for node in tree.nodes():
             if node.parent_node is None:
                 self._get_node_metadata(node, tree_metadata)
-        out.update(tree=tree_metadata)
+        out.update(data=tree_metadata)
 
     def _get_node_metadata(self, node, out):
         """Add node metadata to out.
         """
         # Add edge length from parent
         if node.edge_length is not None:
-            out.update(length=node.edge_length, parent=node.parent_node.label)
-        else:
-            out.update(length=None, parent=None)
+            if self.suppress_edge_lengths is False:
+                out.update(length=node.edge_length, parent=node.parent_node.label)
+            else:
+                out.update(length=None, parent=None)
         # Add annotations from node/taxon
         if self.suppress_annotations is False:
             out.update(annotations=node.annotations.values_as_dict())
