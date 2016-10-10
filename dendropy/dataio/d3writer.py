@@ -22,6 +22,7 @@ Writing of D3-format tree to a stream.
 
 import re
 import warnings
+import json
 from dendropy.utility import error
 from dendropy.utility import textprocessing
 from dendropy.dataio import ioservice
@@ -119,6 +120,7 @@ class D3Writer(ioservice.DataWriter):
 
     def _get_real_value_format_specifier(self):
         return self._real_value_format_specifier
+
     def _set_real_value_format_specifier(self, f):
         if f is None:
             f = ""
@@ -157,5 +159,63 @@ class D3Writer(ioservice.DataWriter):
         """
         Composes and writes ``tree`` to ``stream``.
         """
-        pass
+        # Initialize a tree's metadata
+        tree_metadata = tree.annotations.values_as_dict()
+        tree_metadata["name"] = tree.label
+        data = {}
+        # Add node metadata to tree:
+        for node in tree.nodes():
+            if node.parent_node is None:
+                self._add_node_metadata(node, data)
+        tree_metadata["tree"] = data
+        tree_string = json.dumps(tree_metadata)
+        print(json.dumps(tree_metadata, sort_keys=True,
+                  indent=4, separators=(',', ': ')))
+        stream.write(tree_string)
 
+    def _add_node_metadata(self, node, out):
+        """
+        Add node metadata to out.
+
+        Example
+        -------
+        {
+            "name" : "B",
+            "length" : 0.1,
+            "parent" : "A",
+            "annotations" : {},
+            "children" : [],
+        }
+        """
+        metadata = {}
+        # Add edge length from parent
+        if node.edge is not None:
+            metadata["length"] = node.edge_length
+        else:
+            metadata["length"] = None
+        # Add parent
+        if node.parent_node is not None:
+            metadata["parent"] = node.parent_node.label
+        else:
+            metadata["parent"] = None
+        # Add chilren to metadata
+        self._get_children_metadata(node, metadata)
+        if node.is_leaf():
+            node = node.taxon
+        metadata.update(name=node.label)
+        # Add annotations from node/taxon
+        if self.suppress_annotations is False:
+            metadata["annotations"] = node.annotations.values_as_dict()
+        out.update(metadata)
+
+    def _get_children_metadata(self, parent, out):
+        """
+        Append a children metadata object
+        """
+        children = []
+        nodes = parent.child_nodes()
+        for child in nodes:
+            metadata = {}
+            self._add_node_metadata(child, metadata)
+            children.append(metadata)
+        out.update(children=children)
