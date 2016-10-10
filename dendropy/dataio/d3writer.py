@@ -40,11 +40,11 @@ class D3Writer(ioservice.DataWriter):
 
         Keyword Arguments
         -----------------
-        suppress_leaf_taxon_labels : boolean, default: |False|
+        X suppress_leaf_taxon_labels : boolean, default: |False|
             If |True|, then taxon labels will not be rendered for leaves.
             Default is |False|: render leaf taxon labels. See notes below for
             details.
-        suppress_leaf_node_labels : boolean, default: |True|
+        X suppress_leaf_node_labels : boolean, default: |True|
             If |False|, then node labels (if available) will be printed for
             leaves. Defaults to |True|: do not render leaf node labels. See
             notes below for details.
@@ -151,71 +151,83 @@ class D3Writer(ioservice.DataWriter):
         """
         Writes a |TreeList| in D3 schema to ``stream``.
         """
-        for tree in tree_list:
-            self._write_tree(stream, tree)
+        # Write out a tree list.
+        if len(tree_list) > 1:
+            metadata = dict(name=tree_list.label)
+            # Add treelist annotations
+            if self.suppress_annotations is False:
+                metadata.update(annotations=tree_list.annotations.values_as_dict())
+            # Start adding tree.
+            trees = []
+            for tree in tree_list:
+                tree_metadata = {}
+                self._get_tree_metadata(tree, tree_metadata)
+                trees.append(tree_metadata)
+            stream.write(json.dumps(metadata))
             stream.write("\n")
+        else:
+            self._write_tree(stream, tree_list[0])
 
     def _write_tree(self, stream, tree):
-        """
-        Composes and writes ``tree`` to ``stream``.
-        """
         # Initialize a tree's metadata
-        tree_metadata = tree.annotations.values_as_dict()
-        tree_metadata["name"] = tree.label
-        data = {}
-        # Add node metadata to tree:
-        for node in tree.nodes():
-            if node.parent_node is None:
-                self._add_node_metadata(node, data)
-        tree_metadata["tree"] = data
-        tree_string = json.dumps(tree_metadata)
-        print(json.dumps(tree_metadata, sort_keys=True,
-                  indent=4, separators=(',', ': ')))
+        metadata = {}
+        self._get_tree_metadata(tree, metadata)
+        tree_string = json.dumps(metadata)
         stream.write(tree_string)
 
-    def _add_node_metadata(self, node, out):
+    def _get_tree_metadata(self, tree, out):
+        """Composes and writes ``tree`` to ``stream``.
         """
-        Add node metadata to out.
+        out.update(name=tree.label)
+        # Add annotations to tree.
+        if self.suppress_annotations is False:
+            out.update(annotations=tree.annotations.values_as_dict())
+        # Add node metadata to tree:
+        tree_metadata = {}
+        for node in tree.nodes():
+            if node.parent_node is None:
+                self._get_node_metadata(node, tree_metadata)
+        out.update(tree=tree_metadata)
 
-        Example
-        -------
-        {
-            "name" : "B",
-            "length" : 0.1,
-            "parent" : "A",
-            "annotations" : {},
-            "children" : [],
-        }
+    def _get_node_metadata(self, node, out):
+        """Add node metadata to out.
         """
-        metadata = {}
         # Add edge length from parent
-        if node.edge is not None:
-            metadata["length"] = node.edge_length
+        if node.edge_length is not None:
+            out.update(length=node.edge_length, parent=node.parent_node.label)
         else:
-            metadata["length"] = None
-        # Add parent
-        if node.parent_node is not None:
-            metadata["parent"] = node.parent_node.label
-        else:
-            metadata["parent"] = None
-        # Add chilren to metadata
-        self._get_children_metadata(node, metadata)
-        if node.is_leaf():
-            node = node.taxon
-        metadata.update(name=node.label)
+            out.update(length=None, parent=None)
         # Add annotations from node/taxon
         if self.suppress_annotations is False:
-            metadata["annotations"] = node.annotations.values_as_dict()
-        out.update(metadata)
+            out.update(annotations=node.annotations.values_as_dict())
+        # If a leaf, add leaf metadata
+        if node.is_leaf():
+            if self.suppress_leaf_node_labels is False:
+                out.update(name=node.label)
+            self._get_leaf_metadata(node, out)
+        else:
+            out.update(name=node.label)
+        # Iterate through children
+        self._get_children_metadata(node, out)
+
+    def _get_leaf_metadata(self, node, out):
+        """Add leaf metadata to node metadata
+        """
+        leaf = node.taxon
+        # Add name
+        if self.suppress_leaf_taxon_labels is False:
+            out.update(name=leaf.label)
+        # Add annotations if not suppressed
+        if self.suppress_annotations is False:
+            out["annotations"].update(**leaf.annotations.values_as_dict())
 
     def _get_children_metadata(self, parent, out):
-        """
-        Append a children metadata object
+        """Append a children metadata to parent's `children` attribute.
         """
         children = []
         nodes = parent.child_nodes()
         for child in nodes:
             metadata = {}
-            self._add_node_metadata(child, metadata)
+            self._get_node_metadata(child, metadata)
             children.append(metadata)
         out.update(children=children)
