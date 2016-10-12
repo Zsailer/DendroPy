@@ -25,14 +25,14 @@ import warnings
 import json
 from dendropy.utility import error
 from dendropy.utility import textprocessing
-from dendropy.dataio import ioservice
+from dendropy.dataio import jsonwriter
 
 ##############################################################################
 ## D3Writer
 
-class D3Writer(ioservice.DataWriter):
+class D3Writer(jsonwriter.JsonWriter):
     """
-    Formatter for D3 data.
+    Formatter for D3 data -- a special case of the JsonWriter
     """
 
     def __init__(self, **kwargs):
@@ -99,41 +99,6 @@ class D3Writer(ioservice.DataWriter):
         """
         ioservice.DataWriter.__init__(self)
         ioservice.DataWriter.__init__(self, **kwargs)
-        self.suppress_leaf_taxon_labels = kwargs.pop("suppress_leaf_taxon_labels", False)
-        self.suppress_leaf_node_labels = kwargs.pop("suppress_leaf_node_labels", True)
-        self.suppress_internal_taxon_labels = kwargs.pop("suppress_internal_taxon_labels", False)
-        self.suppress_internal_node_labels = kwargs.pop("suppress_internal_node_labels", False)
-        self.suppress_edge_lengths = kwargs.pop("suppress_edge_lengths", False)
-        self.preserve_spaces = kwargs.pop("preserve_spaces", False)
-        self.store_tree_weights = kwargs.pop("store_tree_weights", False)
-        self.suppress_annotations = kwargs.pop("suppress_annotations", True)
-        self.suppress_item_comments = kwargs.pop("suppress_item_comments", True)
-        self.node_label_element_separator = kwargs.pop("node_label_element_separator", ' ')
-        self.node_label_compose_fn = kwargs.pop("node_label_compose_fn", None)
-        self.edge_label_compose_fn = kwargs.pop("edge_label_compose_fn", None)
-        self._real_value_format_specifier = ""
-        self._real_value_formatter = None
-        self.real_value_format_specifier = kwargs.pop("real_value_format_specifier", self._real_value_format_specifier)
-        if self.edge_label_compose_fn is None:
-            self.edge_label_compose_fn = self._format_edge_length
-        self.check_for_unused_keyword_arguments(kwargs)
-
-    def _get_real_value_format_specifier(self):
-        return self._real_value_format_specifier
-
-    def _set_real_value_format_specifier(self, f):
-        if f is None:
-            f = ""
-        self._real_value_format_specifier = f
-        s = "{:" + self._real_value_format_specifier + "}"
-        self._real_value_formatter = s.format
-    real_value_format_specifier = property(_get_real_value_format_specifier, _set_real_value_format_specifier)
-
-    def _format_edge_length(self, edge):
-        """
-        Note: instance method to allow overriding.
-        """
-        return self._real_value_formatter(edge.length)
 
     def _write(self,
             stream,
@@ -141,94 +106,14 @@ class D3Writer(ioservice.DataWriter):
             tree_lists=None,
             char_matrices=None,
             global_annotations_target=None):
-        for tree_list in tree_lists:
-            if (self.attached_taxon_namespace is not None
-                    and tree_list.taxon_namespace is not self.attached_taxon_namespace):
-                continue
-            self._write_tree_list(stream, tree_list)
+        pass
 
     def _write_tree_list(self, stream, tree_list):
         """
         Writes a |TreeList| in D3 schema to ``stream``.
         """
-        # Write out a tree list.
-        if len(tree_list) > 1:
-            metadata = dict(name=tree_list.label)
-            # Add treelist annotations
-            if self.suppress_annotations is False:
-                metadata.update(annotations=tree_list.annotations.values_as_dict())
-            # Start adding tree.
-            trees = []
-            for tree in tree_list:
-                tree_metadata = {}
-                self._get_tree_metadata(tree, tree_metadata)
-                trees.append(tree_metadata)
-            stream.write(json.dumps(metadata))
-            stream.write("\n")
-        else:
-            self._write_tree(stream, tree_list[0])
+        pass
 
     def _write_tree(self, stream, tree):
         # Initialize a tree's metadata
-        metadata = {}
-        self._get_tree_metadata(tree, metadata)
-        tree_string = json.dumps(metadata)
-        stream.write(tree_string)
-
-    def _get_tree_metadata(self, tree, out):
-        """Composes and writes ``tree`` to ``stream``.
-        """
-        out.update(name=tree.label)
-        # Add annotations to tree.
-        if self.suppress_annotations is False:
-            out.update(annotations=tree.annotations.values_as_dict())
-        # Add node metadata to tree:
-        tree_metadata = {}
-        for node in tree.nodes():
-            if node.parent_node is None:
-                self._get_node_metadata(node, tree_metadata)
-        out.update(data=tree_metadata)
-
-    def _get_node_metadata(self, node, out):
-        """Add node metadata to out.
-        """
-        # Add edge length from parent
-        if node.edge_length is not None:
-            if self.suppress_edge_lengths is False:
-                out.update(length=node.edge_length, parent=node.parent_node.label)
-            else:
-                out.update(length=None, parent=None)
-        # Add annotations from node/taxon
-        if self.suppress_annotations is False:
-            out.update(annotations=node.annotations.values_as_dict())
-        # If a leaf, add leaf metadata
-        if node.is_leaf():
-            if self.suppress_leaf_node_labels is False:
-                out.update(name=node.label)
-            self._get_leaf_metadata(node, out)
-        else:
-            out.update(name=node.label)
-        # Iterate through children
-        self._get_children_metadata(node, out)
-
-    def _get_leaf_metadata(self, node, out):
-        """Add leaf metadata to node metadata
-        """
-        leaf = node.taxon
-        # Add name
-        if self.suppress_leaf_taxon_labels is False:
-            out.update(name=leaf.label)
-        # Add annotations if not suppressed
-        if self.suppress_annotations is False:
-            out["annotations"].update(**leaf.annotations.values_as_dict())
-
-    def _get_children_metadata(self, parent, out):
-        """Append a children metadata to parent's `children` attribute.
-        """
-        children = []
-        nodes = parent.child_nodes()
-        for child in nodes:
-            metadata = {}
-            self._get_node_metadata(child, metadata)
-            children.append(metadata)
-        out.update(children=children)
+        pass

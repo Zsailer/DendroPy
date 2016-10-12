@@ -23,6 +23,7 @@ from dendropy.dataio import newickwriter
 from dendropy.dataio import newickyielder
 from dendropy.dataio import fastareader
 from dendropy.dataio import fastawriter
+from dendropy.dataio import jsonwriter
 from dendropy.dataio import nexusreader
 from dendropy.dataio import nexuswriter
 from dendropy.dataio import nexusyielder
@@ -40,6 +41,7 @@ _IOServices = collections.namedtuple(
 
 _IO_SERVICE_REGISTRY = container.CaseInsensitiveDict()
 _IO_SERVICE_REGISTRY["d3"] = _IOServices(None, d3writer.D3Writer, None)
+_IO_SERVICE_REGISTRY["json"] = _IOServices(None, jsonwriter.JsonWriter, None)
 _IO_SERVICE_REGISTRY["newick"] = _IOServices(newickreader.NewickReader, newickwriter.NewickWriter, newickyielder.NewickTreeDataYielder)
 _IO_SERVICE_REGISTRY["nexus"] = _IOServices(nexusreader.NexusReader, nexuswriter.NexusWriter, nexusyielder.NexusTreeDataYielder)
 _IO_SERVICE_REGISTRY["nexus/newick"] = _IOServices(None, None, nexusyielder.NexusNewickTreeDataYielder)
@@ -105,4 +107,3 @@ def register_reader(schema, reader):
                 tree_yielder=current.tree_yielder)
     except KeyError:
         register_service(schema=schema, reader=reader)
-
