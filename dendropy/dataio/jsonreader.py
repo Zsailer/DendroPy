@@ -195,17 +195,13 @@ class JsonReader(ioservice.DataReader):
         node = self._parse_node_metadata(seed_node)
         # Add node to tree
         tree = tree_factory(seed_node=node, label=tree_metadata.get("name"))
+        # Add annotations.
+        if tree_metadata.get("annotations") is not None:
+            self._parse_annotations(tree, tree_metadata.get("annotations"))
         return tree
 
-    def _parse_children_metadata(self, parent_node, children_metadata):
-        """Add children nodes to parent node.
-        """
-        for child in children_metadata:
-            node = self._parse_node_metadata(child)
-            parent_node.add_child(node)
-
     def _parse_node_metadata(self, node_metadata):
-        """"""
+        """Parse node json and construct a node object"""
         # Add taxon.
         kwargs = dict(label=node_metadata.get("name"),
             edge_length=node_metadata.get("length"))
@@ -217,7 +213,20 @@ class JsonReader(ioservice.DataReader):
         node = Node(**kwargs)
         if node_metadata.get("children") is not None:
             self._parse_children_metadata(node, node_metadata.get("children"))
+        # Add annotations.
+        if node_metadata.get("annotations") is not None:
+            self._parse_annotations(node, node_metadata.get("annotations"))
         return node
 
-    def _parse_annotations(self, annotations):
-        """"""
+    def _parse_children_metadata(self, parent_node, children_metadata):
+        """Parse multiple children json and construct children nodes underneath
+        parent node.
+        """
+        for child in children_metadata:
+            node = self._parse_node_metadata(child)
+            parent_node.add_child(node)
+
+    def _parse_annotations(self, obj, annotations):
+        """Parse annotations json and construct annotations object."""
+        for key, value in annotations.items():
+            obj.annotations.add_new(key, value)
